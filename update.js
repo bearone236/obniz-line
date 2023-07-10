@@ -1,8 +1,13 @@
 const Obniz = require('obniz');
+const { createCanvas, registerFont } = require('canvas');
+const path = require('path');
+
+const obnizeId = '9114-7950';
+const obniz = new Obniz(obnizeId);
+
 const AWS = require('aws-sdk');
 const axios = require('axios');
 
-const obniz = new Obniz('9114-7950');
 const lineNotifyToken = '00bKud7Cg4lT2ezdlDs0RiZmi9LZFgNMIzRg38UQcSK';
 const AWS_REGION = 'ap-northeast-1';
 const TABLE_NAME = 'heatstroke_data';
@@ -11,6 +16,17 @@ const DEVICE_ID = 'obniz-010';
 // AWS SDKの設定
 AWS.config.update({ region: AWS_REGION });
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
+
+function formatTimestamp(timestamp) {
+  const date = new Date(timestamp * 1000);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
 
 obniz.onconnect = async function () {
   var speaker = obniz.wired('Keyestudio_Buzzer', { signal: 0, vcc: 1, gnd: 2 });
@@ -29,7 +45,12 @@ obniz.onconnect = async function () {
     }
 
     const temp = await tempsens.getWait();
-    console.log(temp.toFixed(1));
+    const now = new Date();
+    const currentTime = now.toLocaleString();
+
+    console.log('Temperature:', temp.toFixed(1), '°C');
+    console.log('Status:', getStatus(temp));
+    console.log('Current Time:', currentTime);
 
     var message = '';
     if (temp < 23) {
@@ -60,7 +81,6 @@ obniz.onconnect = async function () {
     }
 
     // LINEへの警告メッセージ送信
-    const now = Date.now();
     if (now - lastSent >= interval) {
       console.log('Sending message to Line...');
       axios
@@ -78,6 +98,15 @@ obniz.onconnect = async function () {
           console.error('Error sending message: ', error);
         });
     }
+
+    // ディスプレイへの表示
+    obniz.display.clear();
+    const canvas = createCanvas(128, 64);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'white';
+    ctx.fillText(`${temp.toFixed(1)} °C   ${getStatus(temp)}`, 10, 20);
+    ctx.fillText(`${currentTime}`, 10, 50);
+    obniz.display.draw(ctx);
 
     // DynamoDBへのデータ保存
     const timestamp = Math.floor(Date.now() / 1000); // タイムスタンプを秒単位に変換
@@ -105,3 +134,13 @@ obniz.onconnect = async function () {
 setTimeout(() => {
   process.exit(0);
 }, 3600 * 1000);
+
+function getStatus(temp) {
+  if (temp < 23) {
+    return '平温';
+  } else if (temp < 32) {
+    return 'やや高温';
+  } else {
+    return '高温';
+  }
+}
