@@ -60,7 +60,7 @@ obniz.onconnect = async function () {
       await obniz.wait(1900);
       interval = 4 * 60 * 1000; // 4分
       message = '現在の温度は ' + temp.toFixed(1) + '℃です。平温です。';
-    } else if (temp < 32) {
+    } else if (temp <= 32) {
       // speaker.play(400); // 400 Hzの音を再生
       light.single('yellow'); // yellow
       await obniz.wait(200);
@@ -70,7 +70,7 @@ obniz.onconnect = async function () {
       interval = 2 * 60 * 1000; // 2分
       message = '現在の温度は ' + temp.toFixed(1) + '℃です。やや高温です。積極的に休憩・水分補給を促しましょう。';
     } else {
-      // speaker.play(700); // 700 Hzの音を再生
+      speaker.play(700); // 700 Hzの音を再生
       light.single('red'); // red
       await obniz.wait(300);
       speaker.stop();
